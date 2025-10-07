@@ -24,7 +24,7 @@ public class UserController {
     }
 
     // 1. Creating User: POST /api/users
-    @PostMapping
+    @PostMapping("/signup")
     public ResponseEntity<User> createUser(@Valid @RequestBody UserRegistrationRequest request) {
         try {
             // Call the service layer to register the new user
@@ -42,22 +42,22 @@ public class UserController {
         }
     }
 
-    // 2. Getting User by ID: GET /api/users/{id}
-    @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        return userService.findById(id)
-                .map(ResponseEntity::ok) // If user is found, return 200 OK
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "User not found with ID: " + id
-                )); // If not found, return 404 Not Found
-    }
+//    // 2. Getting User by ID: GET /api/users/{id}
+//    @GetMapping("/{id}")
+//    public ResponseEntity<User> getUserById(@PathVariable Long id) {
+//        return userService.findById(id)
+//                .map(ResponseEntity::ok) // If user is found, return 200 OK
+//                .orElseThrow(() -> new ResponseStatusException(
+//                        HttpStatus.NOT_FOUND,
+//                        "User not found with ID: " + id
+//                )); // If not found, return 404 Not Found
+//    }
 
-    // 3. Getting All Users: GET /api/users
-    @GetMapping
-    public List<User> getAllUsers() {
-        return userService.findAllUsers();
-    }
+//    // 3. Getting All Users: GET /api/users
+//    @GetMapping
+//    public List<User> getAllUsers() {
+//        return userService.findAllUsers();
+//    }
 
     // 4. Deleting User by ID: DELETE /api/users/{id}
     @DeleteMapping("/{id}")

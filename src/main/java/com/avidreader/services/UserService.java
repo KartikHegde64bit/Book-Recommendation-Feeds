@@ -2,11 +2,17 @@ package com.avidreader.services;
 
 import com.avidreader.entity.User;
 import com.avidreader.repository.UserRepository;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import java.util.Optional;
 
 @Service
@@ -14,26 +20,23 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
 
-    // Dependency Injection via Constructor
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    // Inject AuthenticationManager (expose a ProviderManager bean in SecurityConfig)
+    public UserService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       AuthenticationManager authenticationManager) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.authenticationManager = authenticationManager;
     }
 
     /**
-     * Registers a new user, handles password hashing, and checks for existing username/email.
-     *
-     * @param username The user's chosen username.
-     * @param email The user's email.
-     * @param rawPassword The plain text password.
-     * @return The newly created User entity.
-     * @throws IllegalStateException if the username or email already exists.
+     * Registers a new user with a hashed password, enforcing unique username/email.
      */
     @Transactional
     public User registerNewUser(String username, String email, String rawPassword) {
 
-        // 1. Basic Existence Check (Business Logic)
         if (userRepository.findByUsername(username).isPresent()) {
             throw new IllegalStateException("Username '" + username + "' is already taken.");
         }
@@ -41,57 +44,66 @@ public class UserService {
             throw new IllegalStateException("Email '" + email + "' is already in use.");
         }
 
-        // 2. Create and Populate Entity
         User user = new User();
         user.setUsername(username);
         user.setEmail(email);
-
-        // 3. Hash Password using the entity's method
         user.setPassword(rawPassword, passwordEncoder);
 
-        // 4. Save to Database
         return userRepository.save(user);
     }
 
     /**
-     * Authenticates a user based on their username and password.
-     * * @param username The username to check.
-     * @param rawPassword The plain text password to verify.
-     * @return An Optional containing the User if credentials are valid, or empty otherwise.
+     * Authenticates credentials and establishes session-backed authentication.
+     * For stateless APIs, authenticate and return a token instead of mutating the session.
+     *
+     * @param username the username
+     * @param rawPassword the password
+     * @param request the current HttpServletRequest (to associate SecurityContext with HttpSession)
+     * @return the authenticated domain User
+     * @throws IllegalStateException if authentication fails
      */
-    public Optional<User> authenticateUser(String username, String rawPassword) {
+    @Transactional(readOnly = true)
+    public User login(String username, String rawPassword, HttpServletRequest request) {
+        UsernamePasswordAuthenticationToken authRequest =
+                new UsernamePasswordAuthenticationToken(username, rawPassword);
 
-        Optional<User> userOptional = userRepository.findByUsername(username);
+        Authentication authentication = authenticationManager.authenticate(authRequest);
 
-        if (userOptional.isPresent()) {
-            User user = userOptional.get();
+        // On success, store Authentication in a new SecurityContext and bind it
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+        SecurityContextHolder.setContext(context);
 
-            // Use the entity's checkPassword method
-            if (user.checkPassword(rawPassword, passwordEncoder)) {
-                return Optional.of(user); // Authentication successful
-            }
-        }
+        // Ensure the context is associated with the HttpSession (for stateful session persistence)
+        HttpSession session = request.getSession(true);
+        // Optionally force session ID change after authentication (fixation protection is also handled by Spring Security)
+        request.changeSessionId();
 
-        return Optional.empty(); // User not found or password incorrect
+        // Return the domain user
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalStateException("User not found post-authentication"));
     }
 
     /**
-     * Retrieves a user by their ID.
+     * Legacy credential check without establishing a session.
+     * Useful if building a stateless login to issue JWTs.
      */
+    @Transactional(readOnly = true)
+    public Optional<User> authenticateUser(String username, String rawPassword) {
+        Optional<User> userOptional = userRepository.findByUsername(username);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            if (user.checkPassword(rawPassword, passwordEncoder)) {
+                return Optional.of(user);
+            }
+        }
+        return Optional.empty();
+    }
+
     public Optional<User> findById(Long id) {
         return userRepository.findById(id);
     }
 
-    /**
-     * Retrieves all users from the database.
-     */
-    public List<User> findAllUsers() {
-        return userRepository.findAll();
-    }
-
-    /**
-     * Deletes a user by their ID.
-     */
     @Transactional
     public void deleteUser(Long id) {
         userRepository.deleteById(id);

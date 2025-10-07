@@ -1,4 +1,4 @@
-package com.avidreader.main;
+package com.avidreader.Application;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
