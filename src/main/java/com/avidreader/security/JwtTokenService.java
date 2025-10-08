@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.Collections; // Import for the new method
 
 @Service
 public class JwtTokenService {
@@ -22,21 +23,42 @@ public class JwtTokenService {
 
     public JwtTokenService() {
         String secret = System.getenv("JWT_SECRET");
-        if (secret == null || secret.length() < 64) { // ~512 bits if random base64/hex; adjust as needed
+        if (secret == null || secret.length() < 64) {
             throw new IllegalStateException("JWT_SECRET not set or too short for HMAC512");
         }
         this.alg = Algorithm.HMAC512(secret);
     }
 
+    // --- Existing method: Generates token from a full UserDetails object ---
     public String generate(UserDetails principal) {
         Instant now = Instant.now();
         return JWT.create()
                 .withSubject(principal.getUsername())
                 .withIssuedAt(Date.from(now))
-                .withExpiresAt(Date.from(now.plusSeconds(3600)))
+                .withExpiresAt(Date.from(now.plusSeconds(3600))) // 1 hour expiration
                 .withClaim("roles", principal.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList())
                 .sign(alg);
     }
+
+    // --- New method: Generates token using only the username (suitable for signup) ---
+    /**
+     * Generates a token for a new user, assuming a default set of authorities (e.g., "ROLE_USER").
+     * @param username The subject of the token.
+     * @return The signed JWT string.
+     */
+    public String generateToken(String username) {
+        Instant now = Instant.now();
+        // Assuming a new user is always given the "ROLE_USER" authority
+        List<String> defaultRoles = Collections.singletonList("ROLE_USER");
+
+        return JWT.create()
+                .withSubject(username)
+                .withIssuedAt(Date.from(now))
+                .withExpiresAt(Date.from(now.plusSeconds(3600))) // 1 hour expiration
+                .withClaim("roles", defaultRoles)
+                .sign(alg);
+    }
+    // --------------------------------------------------------------------------
 
     public Authentication parseAndBuildAuthentication(String token) {
         JWTVerifier verifier = JWT.require(alg)

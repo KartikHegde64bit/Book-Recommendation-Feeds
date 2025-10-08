@@ -1,8 +1,11 @@
 package com.avidreader.controllers;
 
+import com.avidreader.dtos.AuthResponse;
+import com.avidreader.dtos.LoginRequest;
+import com.avidreader.dtos.UserDTO;
 import com.avidreader.entity.User;
+import com.avidreader.security.JwtTokenService;
 import com.avidreader.services.UserService;
-import com.avidreader.dtos.UserRegistrationRequest;
 
 import jakarta.validation.Valid;
 
@@ -12,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users") // Base mapping for all user related endpoints
@@ -23,55 +27,29 @@ public class UserController {
         this.userService = userService;
     }
 
-    // 1. Creating User: POST /api/users
-    @PostMapping("/signup")
-    public ResponseEntity<User> createUser(@Valid @RequestBody UserRegistrationRequest request) {
-        try {
-            // Call the service layer to register the new user
-            User newUser = userService.registerNewUser(
-                    request.getUsername(),
-                    request.getEmail(),
-                    request.getPassword()
-            );
+    @RestController
+    @RequestMapping("/api/auth")
+    public class AuthController {
+        private final UserService userService;
+        private final JwtTokenService jwtTokenService;
 
-            // Returns 201 Created status
-            return new ResponseEntity<>(newUser, HttpStatus.CREATED);
-        } catch (IllegalStateException e) {
-            // Handle business logic errors (like user/email already exists)
-            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
-        }
-    }
-
-//    // 2. Getting User by ID: GET /api/users/{id}
-//    @GetMapping("/{id}")
-//    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-//        return userService.findById(id)
-//                .map(ResponseEntity::ok) // If user is found, return 200 OK
-//                .orElseThrow(() -> new ResponseStatusException(
-//                        HttpStatus.NOT_FOUND,
-//                        "User not found with ID: " + id
-//                )); // If not found, return 404 Not Found
-//    }
-
-//    // 3. Getting All Users: GET /api/users
-//    @GetMapping
-//    public List<User> getAllUsers() {
-//        return userService.findAllUsers();
-//    }
-
-    // 4. Deleting User by ID: DELETE /api/users/{id}
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUserById(@PathVariable Long id) {
-        // Find the user first to ensure it exists before attempting to delete
-        if (userService.findById(id).isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "User not found with ID: " + id
-            );
+        public AuthController(UserService users, JwtTokenService jwtTokenService) {
+            this.userService = users;
+            this.jwtTokenService = jwtTokenService;
         }
 
-        userService.deleteUser(id);
-        // Returns 204 No Content status on successful deletion
-        return ResponseEntity.noContent().build();
+        @PostMapping("/signup")
+        public ResponseEntity<AuthResponse> signup(@RequestBody UserDTO req) {
+            User user = userService.registerNewUser(req);
+            String token = jwtTokenService.generateToken(user.getUsername());
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new AuthResponse(token, "Bearer"));
+        }
+
+        @PostMapping("/login")
+        public ResponseEntity<Map<String,String>> login(@RequestBody LoginRequest req) {
+            String token = userService.login(req.getUsername(), req.getPassword());
+            return ResponseEntity.ok(Map.of("access_token", token, "token_type", "Bearer"));
+        }
     }
 }

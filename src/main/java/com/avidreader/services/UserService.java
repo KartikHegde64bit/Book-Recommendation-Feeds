@@ -1,18 +1,15 @@
 package com.avidreader.services;
 
+import com.avidreader.dtos.UserDTO;
 import com.avidreader.entity.User;
 import com.avidreader.repository.UserRepository;
+import com.avidreader.security.JwtTokenService;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import java.util.Optional;
 
 @Service
@@ -21,35 +18,41 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
+    private final JwtTokenService jwtTokenService;
 
     // Inject AuthenticationManager (expose a ProviderManager bean in SecurityConfig)
     public UserService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
-                       AuthenticationManager authenticationManager) {
+                       AuthenticationManager authenticationManager,
+                       JwtTokenService jwtTokenService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
+        this.jwtTokenService = jwtTokenService;
     }
 
     /**
      * Registers a new user with a hashed password, enforcing unique username/email.
      */
     @Transactional
-    public User registerNewUser(String username, String email, String rawPassword) {
+    public User registerNewUser(UserDTO userReq) {
+        String userName = userReq.getUsername();
+        String email = userReq.getEmail();
 
-        if (userRepository.findByUsername(username).isPresent()) {
-            throw new IllegalStateException("Username '" + username + "' is already taken.");
+        if (userRepository.findByUsername(userName).isPresent()) {
+            throw new IllegalStateException("Username '" + userName + "' is already taken.");
         }
         if (userRepository.findByEmail(email).isPresent()) {
             throw new IllegalStateException("Email '" + email + "' is already in use.");
         }
 
         User user = new User();
-        user.setUsername(username);
+        user.setUsername(userName);
         user.setEmail(email);
-        user.setPassword(rawPassword, passwordEncoder);
+        user.setPassword(userReq.getPassword(), passwordEncoder);
 
         return userRepository.save(user);
+
     }
 
     /**
@@ -58,30 +61,27 @@ public class UserService {
      *
      * @param username the username
      * @param rawPassword the password
-     * @param request the current HttpServletRequest (to associate SecurityContext with HttpSession)
      * @return the authenticated domain User
      * @throws IllegalStateException if authentication fails
      */
+    // Assuming the method is in UserService and still uses AuthenticationManager
+    // NOTE: We change the method signature, removing HttpServletRequest.
     @Transactional(readOnly = true)
-    public User login(String username, String rawPassword, HttpServletRequest request) {
+    public User login(String username, String rawPassword) {
+
+        // 1. Attempt to authenticate the user using the AuthenticationManager
         UsernamePasswordAuthenticationToken authRequest =
                 new UsernamePasswordAuthenticationToken(username, rawPassword);
 
-        Authentication authentication = authenticationManager.authenticate(authRequest);
+        // This line performs the actual authentication (checks password, loads user details).
+        // If it fails, an AuthenticationException is thrown (e.g., BadCredentialsException).
+        authenticationManager.authenticate(authRequest);
 
-        // On success, store Authentication in a new SecurityContext and bind it
-        SecurityContext context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(authentication);
-        SecurityContextHolder.setContext(context);
-
-        // Ensure the context is associated with the HttpSession (for stateful session persistence)
-        HttpSession session = request.getSession(true);
-        // Optionally force session ID change after authentication (fixation protection is also handled by Spring Security)
-        request.changeSessionId();
-
-        // Return the domain user
+        // 2. If authentication succeeds, retrieve and return the domain User object.
+        // NOTE: In a stateless API, this User object is often used to get the UserDetails
+        // needed to generate the JWT claims (like ID, username, roles).
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalStateException("User not found post-authentication"));
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found in repository."));
     }
 
     /**
