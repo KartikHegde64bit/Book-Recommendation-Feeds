@@ -20,6 +20,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+        String requestPath = request.getRequestURI();
+        if (requestPath.endsWith("/api/auth/signup") || requestPath.endsWith("/api/auth/login")) {
+            // Since we explicitly permit these endpoints in SecurityFilterChain,
+            // we skip token validation and proceed immediately.
+            chain.doFilter(request, response);
+            return;
+        }
+
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
