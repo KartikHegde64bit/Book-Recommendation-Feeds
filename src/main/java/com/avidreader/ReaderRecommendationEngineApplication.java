@@ -1,4 +1,4 @@
-package com.avidreader.Application;
+package com.avidreader;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

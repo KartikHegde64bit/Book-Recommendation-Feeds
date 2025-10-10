@@ -21,9 +21,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String requestPath = request.getRequestURI();
-        if (requestPath.endsWith("/api/auth/signup") || requestPath.endsWith("/api/auth/login")) {
-            // Since we explicitly permit these endpoints in SecurityFilterChain,
-            // we skip token validation and proceed immediately.
+        System.out.println("Request URI: " + request.getRequestURI());
+        if (requestPath.contains("/api/auth/signup") || requestPath.contains("/api/auth/login")) {
             chain.doFilter(request, response);
             return;
         }
