@@ -35,11 +35,16 @@ public class UserController {
         }
 
         @PostMapping("/signup")
-        public ResponseEntity<AuthResponse> signup(@RequestBody UserDTO req) {
-            User user = userService.registerNewUser(req);
-            String token = jwtTokenService.generateToken(user.getUsername());
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new AuthResponse(token, "Bearer"));
+        public ResponseEntity<Map<String, String>> signup(@RequestBody UserDTO req) {
+            try {
+                User user = userService.registerNewUser(req);
+                String token = jwtTokenService.generateToken(user.getUsername());
+                return ResponseEntity.status(HttpStatus.CREATED)
+                        .body(Map.of("message", "created successfully"));
+            }catch(Exception e){
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Something went wrong"));
+            }
+
         }
 
         @PostMapping("/login")
