@@ -80,8 +80,10 @@ public class UserService {
         // 2. If authentication succeeds, retrieve and return the domain User object.
         // NOTE: In a stateless API, this User object is often used to get the UserDetails
         // needed to generate the JWT claims (like ID, username, roles).
-        return userRepository.findByUsername(username)
+
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalStateException("Authenticated user not found in repository."));
+        return user;
     }
 
     /**

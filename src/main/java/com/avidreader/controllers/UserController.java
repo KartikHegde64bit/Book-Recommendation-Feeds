@@ -9,6 +9,8 @@ import com.avidreader.services.UserService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -48,11 +50,20 @@ public class UserController {
         }
 
         @PostMapping("/login")
-        public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest req) {
-            //String token = userService.login(req.getUsername(), req.getPassword());
+        public ResponseEntity<Map<String, String>> login(@RequestBody LoginRequest req) {
+            User user = userService.login(req.getUsername(), req.getPassword());
+            if(user != null){
+                //return ResponseEntity.ok(Map.of("access_token", token, "token_type", "Bearer"));
+                String token = jwtTokenService.generateToken(user.getUsername());
+                return ResponseEntity.ok(Map.of(
+                        "access_token", token,
+                        "token_type", "Bearer"
+                ));
+
+            }
             //return ResponseEntity.ok(Map.of("access_token", token, "token_type", "Bearer"));
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new AuthResponse("token", "Bearer"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Invalid username or password"));
         }
     }
 }
