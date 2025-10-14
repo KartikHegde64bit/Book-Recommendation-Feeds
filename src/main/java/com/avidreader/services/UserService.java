@@ -5,7 +5,6 @@ import com.avidreader.entity.User;
 import com.avidreader.repository.UserRepository;
 import com.avidreader.security.JwtTokenService;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,19 +67,6 @@ public class UserService {
     // NOTE: We change the method signature, removing HttpServletRequest.
     @Transactional(readOnly = true)
     public User login(String username, String rawPassword) {
-
-        // 1. Attempt to authenticate the user using the AuthenticationManager
-        UsernamePasswordAuthenticationToken authRequest =
-                new UsernamePasswordAuthenticationToken(username, rawPassword);
-
-        // This line performs the actual authentication (checks password, loads user details).
-        // If it fails, an AuthenticationException is thrown (e.g., BadCredentialsException).
-        authenticationManager.authenticate(authRequest);
-
-        // 2. If authentication succeeds, retrieve and return the domain User object.
-        // NOTE: In a stateless API, this User object is often used to get the UserDetails
-        // needed to generate the JWT claims (like ID, username, roles).
-
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalStateException("Authenticated user not found in repository."));
         return user;
