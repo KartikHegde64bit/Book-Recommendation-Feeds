@@ -1,0 +1,65 @@
+import csv
+import psycopg2
+from sentence_transformers import SentenceTransformer
+from tqdm import tqdm
+
+# Load embedding model
+MODEL_NAME = {model_name} #"all-MiniLM-L6-v2"  # 384 dimensions
+model = SentenceTransformer(MODEL_NAME)
+
+# Connect to Postgres
+conn = psycopg2.connect("postgresql://{postgres_username}:{password}@localhost:{port_no}/{db_name}")
+cur = conn.cursor()
+
+# Create table if not exists
+cur.execute("""
+CREATE TABLE IF NOT EXISTS books (
+  id BIGSERIAL PRIMARY KEY,
+  type TEXT,
+  issued TEXT,
+  title TEXT,
+  language TEXT,
+  authors TEXT,
+  subjects TEXT,
+  locc TEXT,
+  bookshelves TEXT,
+  embedding vector(384),
+  created_at timestamptz DEFAULT now()
+);
+""")
+conn.commit()
+
+# Read CSV
+with open("books.csv", newline='', encoding="utf-8") as f:
+    reader = csv.DictReader(f)
+    rows = list(reader)
+
+for row in tqdm(rows):
+    text = " ".join([
+        row.get("Title", "") or "",
+        row.get("Authors", "") or "",
+        row.get("Subjects", "") or "",
+        row.get("Bookshelves", "") or "",
+    ])
+
+    embedding = model.encode(text).tolist()
+
+    sql = """
+    INSERT INTO books (type, issued, title, language, authors, subjects, locc, bookshelves, embedding)
+    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s::vector)
+    """
+    cur.execute(sql, (
+        row.get("Type"),
+        row.get("Issued"),
+        row.get("Title"),
+        row.get("Language"),
+        row.get("Authors"),
+        row.get("Subjects"),
+        row.get("LoCC"),
+        row.get("Bookshelves"),
+        embedding
+    ))
+
+conn.commit()
+cur.close()
+conn.close()
