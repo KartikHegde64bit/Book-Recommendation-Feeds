@@ -10,6 +10,8 @@ import lombok.AllArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Maps to the 'user' table in the PostgreSQL database.
@@ -50,6 +52,12 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    // User reading preferences stored as tags in a collection table
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_preference", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "tag", length = 100)
+    private Set<String> preferences = new HashSet<>();
 
     /**
      * Hashes the raw password using the provided PasswordEncoder and sets it

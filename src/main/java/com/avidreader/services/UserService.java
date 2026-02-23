@@ -9,7 +9,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class UserService {
@@ -67,9 +69,11 @@ public class UserService {
     // NOTE: We change the method signature, removing HttpServletRequest.
     @Transactional(readOnly = true)
     public User login(String username, String rawPassword) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalStateException("Authenticated user not found in repository."));
-        return user;
+        User user = userRepository.findByUsername(username).orElse(null);
+        if (user != null && user.checkPassword(rawPassword, passwordEncoder)) {
+            return user;
+        }
+        return null;
     }
 
     /**
@@ -95,5 +99,28 @@ public class UserService {
     @Transactional
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
+    }
+
+    /**
+     * Returns the set of reading-preference tags for a user.
+     */
+    @Transactional(readOnly = true)
+    public Set<String> getPreferences(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalStateException("User not found"));
+        return user.getPreferences();
+    }
+
+    /**
+     * Replaces the user's reading-preference tags with the given set.
+     */
+    @Transactional
+    public Set<String> updatePreferences(String username, Set<String> tags) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalStateException("User not found"));
+        user.getPreferences().clear();
+        user.getPreferences().addAll(tags);
+        userRepository.save(user);
+        return user.getPreferences();
     }
 }
