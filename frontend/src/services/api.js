@@ -44,6 +44,11 @@ export function updatePreferences(tags) {
 
 /* ---- Recommendations ---- */
 
+/**
+ * Search books - returns combined results from local DB and Google Books API.
+ * @param {string} query - Search query
+ * @returns {Promise<{local: Array, google: Array}>}
+ */
 export function searchBooks(query) {
   return request(`/recommend?query=${encodeURIComponent(query)}`)
 }
@@ -51,3 +56,27 @@ export function searchBooks(query) {
 export function getFeed() {
   return request('/recommend/feed')
 }
+
+/* ---- Google Books ---- */
+
+/**
+ * Get detailed information about a specific Google Book.
+ * @param {string} volumeId - Google Volume ID
+ * @returns {Promise<Object>} Book details
+ */
+export function getGoogleBookDetails(volumeId) {
+  return request(`/books/google/${encodeURIComponent(volumeId)}`)
+}
+
+/**
+ * Import a book from Google Books into the local database.
+ * @param {string} googleId - Google Volume ID
+ * @returns {Promise<{id: number, title: string, message: string}>}
+ */
+export function importGoogleBook(googleId) {
+  return request('/books/import', {
+    method: 'POST',
+    body: JSON.stringify({ googleId })
+  })
+}
+
