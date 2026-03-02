@@ -7,6 +7,7 @@ import com.avidreader.entity.User;
 import com.avidreader.security.JwtTokenService;
 import com.avidreader.services.UserService;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -35,7 +36,7 @@ public class UserController {
         }
 
         @PostMapping("/signup")
-        public ResponseEntity<Map<String, String>> signup(@RequestBody UserDTO req) {
+        public ResponseEntity<Map<String, String>> signup(@Valid @RequestBody UserDTO req) {
             try {
                 User user = userService.registerNewUser(req);
                 return ResponseEntity.status(HttpStatus.CREATED)
@@ -47,7 +48,7 @@ public class UserController {
         }
 
         @PostMapping("/login")
-        public ResponseEntity<Map<String, String>> login(@RequestBody LoginRequest req) {
+        public ResponseEntity<Map<String, String>> login(@Valid @RequestBody LoginRequest req) {
             User user = userService.login(req.getUsername(), req.getPassword());
             if(user != null){
                 String token = jwtTokenService.generateToken(user.getUsername());

@@ -2,6 +2,7 @@ package com.avidreader.controllers;
 
 import com.avidreader.dtos.PreferenceRequest;
 import com.avidreader.services.UserService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -27,7 +28,10 @@ public class PreferenceController {
 
     @PutMapping
     public ResponseEntity<Set<String>> updatePreferences(
-            @RequestBody PreferenceRequest request, Authentication auth) {
+            @Valid @RequestBody PreferenceRequest request, Authentication auth) {
+        if (request == null || request.getTags() == null || request.getTags().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
         Set<String> updated = userService.updatePreferences(
                 auth.getName(), new HashSet<>(request.getTags()));
         return ResponseEntity.ok(updated);
