@@ -50,7 +50,7 @@ public class GoogleBooksService {
 
     public GoogleBooksService(
             RestTemplate restTemplate,
-            @Value("${google.books.api.key:AIzaSyAiwqjwq1glOJ-y9RvClhkmCZ1gaUhnthk}") String apiKey,
+            @Value("${google.books.api.key:{YOUR_API_KEY}") String apiKey,
             @Value("${google.books.api.base-url:https://www.googleapis.com/books/v1}") String baseUrl,
             @Value("${google.books.api.max-results:10}") int maxResults) {
         this.restTemplate = restTemplate;
